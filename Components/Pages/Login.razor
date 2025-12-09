@@ -1,0 +1,140 @@
+@page "/login"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using LernCockpit.Data
+@using MudBlazor
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager NavManager
+
+<PageTitle>Login - LernCockpit</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-10">
+    <MudItem xs="12" sm="7" md="4">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Anmelden</MudText>
+                
+                <MudTextField @bind-Value="_email"
+                              T="string" 
+                              Label="E-Mail" 
+                              Variant="Variant.Outlined" 
+                              Class="mb-3" 
+                              Immediate="true" 
+                              Adornment="Adornment.End" 
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              Error="@(!string.IsNullOrEmpty(_errorMessage))"/>
+                
+                <MudTextField @bind-Value="_passwort"
+                              T="string" 
+                              Label="Passwort" 
+                              Variant="Variant.Outlined" 
+                              InputType="InputType.Password" 
+                              Adornment="Adornment.End" 
+                              AdornmentIcon="@Icons.Material.Filled.Lock"
+                              Error="@(!string.IsNullOrEmpty(_errorMessage))"
+                              OnKeyDown="@OnKeyDown"/>
+                
+                <div class="d-flex justify-space-between align-center mt-4 mb-4">
+                    <MudCheckBox T="bool" Label="Angemeldet bleiben" Color="Color.Primary" />
+                    <MudLink Href="#" Color="Color.Primary">Passwort vergessen?</MudLink>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">@_errorMessage</MudAlert>
+                }
+            </MudCardContent>
+            
+            <MudCardActions Class="pb-4 px-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           OnClick="DoLogin"
+                           Disabled="@_loading"
+                           Size="Size.Large">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Class="me-2" Size="Size.Small" Indeterminate="true" />
+                        <MudText>Lade...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Login</MudText>
+                    }
+                </MudButton>
+            </MudCardActions>
+            
+            <MudDivider />
+            
+            <MudCardActions Class="d-flex justify-center py-3">
+                <MudText Typo="Typo.body2">Noch kein Konto?</MudText>
+                <MudLink Href="/registrieren" Color="Color.Primary" Class="ms-2">Jetzt registrieren</MudLink>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string _email = "";
+    private string _passwort = "";
+    private string _errorMessage = "";
+    private bool _loading = false;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoLogin();
+        }
+    }
+
+    private async Task DoLogin()
+    {
+        _errorMessage = "";
+        _loading = true;
+        
+        
+        await Task.Delay(300);
+
+        
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_passwort))
+        {
+            _errorMessage = "Bitte Email und Passwort eingeben.";
+            _loading = false;
+            return;
+        }
+
+        try
+        {
+            using var db = DbFactory.CreateDbContext();
+
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == _email);
+
+            if (user == null)
+            {
+                _errorMessage = "Email oder Passwort ist falsch.";
+                _loading = false;
+                return;
+            }
+
+            //// passwort muss noch gehasht werden
+            if (user.PasswordHash == _passwort)
+            {
+                NavManager.NavigateTo("/dashboard", forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = "Email oder Passwort ist falsch.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Fehler bei der Anmeldung. Bitte versuche es später.";
+            Console.WriteLine($"Login-Fehler: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

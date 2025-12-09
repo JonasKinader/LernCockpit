@@ -1,4 +1,4 @@
-﻿@page "/"
+﻿@page "/registrieren"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using LernCockpit.Components.Models
 @using MudBlazor
@@ -6,12 +6,18 @@
 @using LernCockpit.Data
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager NavManager
 
-<PageTitle>LernCockpit</PageTitle>
+<PageTitle>Registrieren - LernCockpit</PageTitle>
 
-<MudGrid>
-    <MudItem xs="12" sm="7">
+<MudGrid Justify="Justify.Center" Class="mt-8">
+    <MudItem xs="12" sm="10" md="7">
         <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Align="Align.Center">Registrierung</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
             <MudCardContent>
                 
                 <MudTextField T="string" Label="Name" 
@@ -43,30 +49,42 @@
                               Validation="@(new Func<string, IEnumerable<string>>(CheckPassword2))"
                               InputType="InputType.Password"
                               Immediate="true"/>
+                
+                @if (success)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mt-4" Dense="true">
+                        ✓ Erfolgreich registriert! Du kannst dich jetzt anmelden.
+                    </MudAlert>
+                }
+                
+                @if (!string.IsNullOrEmpty(generalError))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">
+                        @generalError
+                    </MudAlert>
+                }
             </MudCardContent>
-            <MudCardActions>
+            
+            <MudCardActions Class="pb-4 px-4">
                 <MudButton ButtonType="ButtonType.Button" 
                            Variant="Variant.Filled" 
                            Color="Color.Primary" 
-                           Class="ml-auto"
+                           FullWidth="true"
+                           Size="Size.Large"
                            OnClick="OnSubmit">
                     Registrieren
                 </MudButton>
             </MudCardActions>
+            
+            <MudDivider />
+            
+            <MudCardActions Class="d-flex justify-center py-3">
+                <MudText Typo="Typo.body2">Schon registriert?</MudText>
+                <MudLink Href="/login" Color="Color.Primary" Class="ms-2">
+                    <strong>Jetzt anmelden</strong>
+                </MudLink>
+            </MudCardActions>
         </MudCard>
-    </MudItem>
-    <MudItem xs="12" sm="5">
-        <MudPaper Class="pa-4 mud-height-full">
-            <MudText Typo="Typo.subtitle2">Status</MudText>
-            @if (success)
-            {
-                <MudText Color="Color.Success">✓ Erfolgreich registriert!</MudText>
-            }
-            @if (!string.IsNullOrEmpty(generalError))
-            {
-                <MudText Color="Color.Error" Class="mt-2">@generalError</MudText>
-            }
-        </MudPaper>
     </MudItem>
 </MudGrid>
 
@@ -90,11 +108,8 @@
 
         try
         {
-            
             using var db = DbFactory.CreateDbContext();
-            
             var vergeben = await db.Users.AnyAsync(u => u.Username == username);
-            
             if (vergeben) return new[] { "Name ist bereits vergeben" };
         }
         catch
@@ -139,6 +154,7 @@
     
     private async Task OnSubmit()
     {
+        // Validierung durchführen
         var nameCheck = await CheckUsername(model.Username);
         var mailCheck = await CheckEmail(model.Email);
         var pwCheck = CheckPassword(model.Password);
@@ -157,7 +173,7 @@
             {
                 Username = model.Username,
                 Email = model.Email,
-                //muss noch ändern ///////////////////////////////////
+                // ich muss passwort noch verschlüsseln
                 PasswordHash = model.Password, 
                 CreatedAt = DateTime.Now
             };
@@ -168,10 +184,19 @@
             success = true;
             model = new RegisterAccountForm();
             generalError = "";
+
+            StateHasChanged();
+            
+            await Task.Delay(2000);
+               
+            NavManager.NavigateTo("/login");
+            
+            
         }
         catch (Exception ex)
         {
             generalError = $"Datenbankfehler: {ex.Message}";
+            Console.WriteLine($"Registrierungsfehler: {ex}");
         }
     }
 }
