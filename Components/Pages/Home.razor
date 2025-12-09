@@ -1,86 +1,177 @@
 ﻿@page "/"
-<h1>Hallo Welt</h1>
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using LernCockpit.Components.Models
 @using MudBlazor
 @using MudBlazor.Components
-
+@using LernCockpit.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
 
 <PageTitle>LernCockpit</PageTitle>
 
-
-
-@using System.ComponentModel.DataAnnotations
-
-<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
-<DataAnnotationsValidator/>
 <MudGrid>
     <MudItem xs="12" sm="7">
         <MudCard>
             <MudCardContent>
-                <MudTextField Label="First name" HelperText="Max. 8 characters"
-                              @bind-Value="model.Username" For="@(() => model.Username)"/>
-                <MudTextField Label="Email" Class="mt-3"
-                              @bind-Value="model.Email" For="@(() => model.Email)"/>
-                <MudTextField Label="Password" HelperText="Choose a strong password" Class="mt-3"
-                              @bind-Value="model.Password" For="@(() => model.Password)" InputType="InputType.Password"/>
-                <MudTextField Label="Password" HelperText="Repeat the password" Class="mt-3"
-                              @bind-Value="model.Password2" For="@(() => model.Password2)" InputType="InputType.Password"/>
+                
+                <MudTextField T="string" Label="Name" 
+                              HelperText="Max. 8 Zeichen"
+                              @bind-Value="model.Username"
+                              Validation="@(new Func<string, Task<IEnumerable<string>>>(CheckUsername))"
+                              Immediate="true"
+                              DebounceInterval="500"/>
+                
+                <MudTextField T="string" Label="Email" 
+                              Class="mt-3" HelperText="Nur gültige Email-Adressen."
+                              @bind-Value="model.Email"
+                              Validation="@(new Func<string, Task<IEnumerable<string>>>(CheckEmail))"
+                              Immediate="true"
+                              DebounceInterval="500"/>
+                
+                <MudTextField T="string" Label="Passwort" 
+                              HelperText="Wähle ein starkes Passwort" 
+                              Class="mt-3"
+                              @bind-Value="model.Password"
+                              Validation="@(new Func<string, IEnumerable<string>>(CheckPassword))"
+                              InputType="InputType.Password"
+                              Immediate="true"/>
+                
+                <MudTextField T="string" Label="Passwort wiederholen" 
+                              HelperText="Wiederhole das Passwort" 
+                              Class="mt-3"
+                              @bind-Value="model.Password2"
+                              Validation="@(new Func<string, IEnumerable<string>>(CheckPassword2))"
+                              InputType="InputType.Password"
+                              Immediate="true"/>
             </MudCardContent>
             <MudCardActions>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Register</MudButton>
+                <MudButton ButtonType="ButtonType.Button" 
+                           Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Class="ml-auto"
+                           OnClick="OnSubmit">
+                    Registrieren
+                </MudButton>
             </MudCardActions>
         </MudCard>
     </MudItem>
     <MudItem xs="12" sm="5">
         <MudPaper Class="pa-4 mud-height-full">
-            <MudText Typo="Typo.subtitle2">Validation Summary</MudText>
+            <MudText Typo="Typo.subtitle2">Status</MudText>
             @if (success)
             {
-                <MudText Color="Color.Success">Success</MudText>
+                <MudText Color="Color.Success">✓ Erfolgreich registriert!</MudText>
             }
-            else
+            @if (!string.IsNullOrEmpty(generalError))
             {
-                <MudText Color="@Color.Error">
-                    <ValidationSummary />
-                </MudText>
+                <MudText Color="Color.Error" Class="mt-2">@generalError</MudText>
             }
         </MudPaper>
     </MudItem>
-    <MudItem xs="12">
-        <MudText Typo="Typo.body2" Align="Align.Center">
-            Fill out the form correctly to see the success message.
-        </MudText>
-    </MudItem>
 </MudGrid>
-</EditForm>
-
 
 @code {
     RegisterAccountForm model = new RegisterAccountForm();
     bool success;
+    string generalError = "";
 
     public class RegisterAccountForm
     {
-        [Required]
-        [StringLength(8, ErrorMessage = "Name length can't be more than 8.")]
-        public string Username { get; set; }
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string Password2 { get; set; } = "";
+    }
+    
+    private async Task<IEnumerable<string>> CheckUsername(string username)
+    {
+        if (string.IsNullOrWhiteSpace(username)) return new[] { "Bitte gib einen Namen ein" };
+        if (username.Length > 8) return new[] { "Maximal 8 Zeichen erlaubt" };
 
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; }
+        try
+        {
+            
+            using var db = DbFactory.CreateDbContext();
+            
+            var vergeben = await db.Users.AnyAsync(u => u.Username == username);
+            
+            if (vergeben) return new[] { "Name ist bereits vergeben" };
+        }
+        catch
+        {
+            return new[] { "Verbindungsfehler zur Datenbank" };
+        }
 
-        [Required]
-        [StringLength(30, ErrorMessage = "Password must be at least 8 characters long.", MinimumLength = 8)]
-        public string Password { get; set; }
-
-        [Required]
-        [Compare(nameof(Password))]
-        public string Password2 { get; set; }
-
+        return Enumerable.Empty<string>();
     }
 
-    private void OnValidSubmit(EditContext context)
+    private async Task<IEnumerable<string>> CheckEmail(string email)
     {
-        success = true;
-        StateHasChanged();
+        if (string.IsNullOrWhiteSpace(email)) return new[] { "Email erforderlich" };
+        if (!email.Contains("@") || !email.Contains(".")) return new[] { "Ungültige Email" };
+
+        try
+        {
+            using var db = DbFactory.CreateDbContext();
+            var vergeben = await db.Users.AnyAsync(u => u.Email == email);
+            if (vergeben) return new[] { "Email wird bereits verwendet" };
+        }
+        catch 
+        {
+            return new[] { "Fehler bei Prüfung" };
+        }
+        return Enumerable.Empty<string>();
+    }
+
+    private IEnumerable<string> CheckPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password)) return new[] { "Passwort erforderlich" };
+        if (password.Length < 8) return new[] { "Mindestens 8 Zeichen" };
+        return Enumerable.Empty<string>();
+    }
+
+    private IEnumerable<string> CheckPassword2(string password2)
+    {
+        if (string.IsNullOrWhiteSpace(password2)) return new[] { "Wiederholung erforderlich" };
+        if (password2 != model.Password) return new[] { "Passwörter stimmen nicht überein" };
+        return Enumerable.Empty<string>();
+    }
+    
+    private async Task OnSubmit()
+    {
+        var nameCheck = await CheckUsername(model.Username);
+        var mailCheck = await CheckEmail(model.Email);
+        var pwCheck = CheckPassword(model.Password);
+        var pw2Check = CheckPassword2(model.Password2);
+        
+        if (nameCheck.Any() || mailCheck.Any() || pwCheck.Any() || pw2Check.Any())
+        {
+            generalError = "Bitte korrigiere die rot markierten Felder.";
+            return;
+        }
+
+        try
+        {
+            using var db = DbFactory.CreateDbContext();
+            var newUser = new User
+            {
+                Username = model.Username,
+                Email = model.Email,
+                //muss noch ändern ///////////////////////////////////
+                PasswordHash = model.Password, 
+                CreatedAt = DateTime.Now
+            };
+            
+            db.Users.Add(newUser);
+            await db.SaveChangesAsync();
+            
+            success = true;
+            model = new RegisterAccountForm();
+            generalError = "";
+        }
+        catch (Exception ex)
+        {
+            generalError = $"Datenbankfehler: {ex.Message}";
+        }
     }
 }
