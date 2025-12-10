@@ -50,6 +50,13 @@
                               InputType="InputType.Password"
                               Immediate="true"/>
                 
+                <MudTextField T="string" Label="Ausbilder Code (Optional)" 
+                              Class="mt-5" 
+                              HelperText="Nur ausfüllen, wenn du Ausbilder bist."
+                              @bind-Value="model.AusbilderCode"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.VpnKey"/>
+                
                 @if (success)
                 {
                     <MudAlert Severity="Severity.Success" Class="mt-4" Dense="true">
@@ -89,6 +96,9 @@
 </MudGrid>
 
 @code {
+    // Lehrer csecretcode !!!!!!!!!!!!!!!!!
+    private const string SECRET_CODE = "lehrercode123"; 
+
     RegisterAccountForm model = new RegisterAccountForm();
     bool success;
     string generalError = "";
@@ -99,6 +109,7 @@
         public string Email { get; set; } = "";
         public string Password { get; set; } = "";
         public string Password2 { get; set; } = "";
+        public string AusbilderCode { get; set; } = ""; 
     }
     
     private async Task<IEnumerable<string>> CheckUsername(string username)
@@ -154,7 +165,6 @@
     
     private async Task OnSubmit()
     {
-        // Validierung durchführen
         var nameCheck = await CheckUsername(model.Username);
         var mailCheck = await CheckEmail(model.Email);
         var pwCheck = CheckPassword(model.Password);
@@ -169,12 +179,21 @@
         try
         {
             using var db = DbFactory.CreateDbContext();
+            
+            bool isInstructor = false;
+            
+            if (!string.IsNullOrWhiteSpace(model.AusbilderCode) && model.AusbilderCode == SECRET_CODE)
+            {
+                isInstructor = true;
+            }
+
             var newUser = new User
             {
                 Username = model.Username,
                 Email = model.Email,
                 PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword(model.Password , 13), 
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                IsAusbilder = isInstructor
             };
             
             db.Users.Add(newUser);
@@ -189,8 +208,6 @@
             await Task.Delay(2000);
                
             NavManager.NavigateTo("/login");
-            
-            
         }
         catch (Exception ex)
         {
