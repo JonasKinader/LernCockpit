@@ -1,6 +1,28 @@
-﻿@using MudBlazor
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
 
 <MudNavMenu>
-    <MudNavLink Href="/registrieren" Match="NavLinkMatch.All" >Registrieren</MudNavLink>
-    <MudNavLink Href="/login" Match="NavLinkMatch.All" >Anmelden</MudNavLink>
+    
+    <!-- User Navbar -->
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/Dashboard">Dashboard</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+    
+    <!--Ausbilder Navbar -->
+    <AuthorizeView Roles="Ausbilder">
+        <Authorized>
+            <MudNavLink Href="/AusbilderDashboard">Dashboard</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+    
+    <!-- Gäste/nicht Angemeldet Navbar -->
+    <AuthorizeView>
+        <NotAuthorized>
+        <MudNavLink Href="/registrieren" Match="NavLinkMatch.All">Registrieren</MudNavLink>
+        <MudNavLink Href="/login" Match="NavLinkMatch.All">Anmelden</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+    
 </MudNavMenu>

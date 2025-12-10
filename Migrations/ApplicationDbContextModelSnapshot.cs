@@ -38,6 +38,15 @@ namespace LernCockpit.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsAusbilder")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsLogedIn")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)

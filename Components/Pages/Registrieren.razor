@@ -173,8 +173,7 @@
             {
                 Username = model.Username,
                 Email = model.Email,
-                // ich muss passwort noch verschlüsseln
-                PasswordHash = model.Password, 
+                PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword(model.Password , 13), 
                 CreatedAt = DateTime.Now
             };
             

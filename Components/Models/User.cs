@@ -19,7 +19,13 @@ namespace LernCockpit.Components.Models
         [Required]
         [MaxLength(50)]
         public string Email { get; set; } = string.Empty;
+        
+        public bool IsAdmin { get; set; } 
+        
+        public bool IsLogedIn { get; set; }
 
+        public bool IsAusbilder { get; set; }
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

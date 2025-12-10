@@ -1,12 +1,24 @@
 using MudBlazor.Services;
 using LernCockpit.Components;
+using LernCockpit.Components.Auth;
 using Microsoft.EntityFrameworkCore;
 using LernCockpit.Data;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
+
+// added den sessionsicheren speicher
+builder.Services.AddScoped<ProtectedSessionStorage>();
+
+// ersetzt den standart auth-provider durch meinen eigenen zwischenspeicher
+builder.Services.AddScoped<AuthenticationStateProvider, Zwischenspeicher>();
+
+// gibt den loginstatus an alle komponenten weiter
+builder.Services.AddCascadingAuthenticationState();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

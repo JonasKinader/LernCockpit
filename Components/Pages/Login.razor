@@ -1,10 +1,13 @@
 @page "/login"
 @rendermode InteractiveServer
+@using LernCockpit.Components.Auth
 @using Microsoft.EntityFrameworkCore
 @using LernCockpit.Data
+@using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Login - LernCockpit</PageTitle>
 
@@ -116,10 +119,13 @@
                 _loading = false;
                 return;
             }
-
-            //// passwort muss noch gehasht werden
-            if (user.PasswordHash == _passwort)
+            
+            if (BCrypt.Net.BCrypt.EnhancedVerify(_passwort, user.PasswordHash))
             {
+                var zspeicher = (Zwischenspeicher)AuthStateProvider;
+
+                await zspeicher.UpdateAuthenticationState(user.Email);
+                
                 NavManager.NavigateTo("/dashboard", forceLoad: true);
             }
             else
