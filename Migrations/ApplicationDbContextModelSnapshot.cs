@@ -22,6 +22,87 @@ namespace LernCockpit.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("LernCockpit.Components.Models.Folder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("HauptthemaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsAufgeklappt")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsHauptthema")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HauptthemaId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Folders");
+                });
+
+            modelBuilder.Entity("LernCockpit.Components.Models.LearningFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("DateiGroesse")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("FileData")
+                        .HasColumnType("longblob");
+
+                    b.Property<int>("FolderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Inhalt")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsNotiz")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FolderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LearningFiles");
+                });
+
             modelBuilder.Entity("LernCockpit.Components.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -60,6 +141,50 @@ namespace LernCockpit.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("LernCockpit.Components.Models.Folder", b =>
+                {
+                    b.HasOne("LernCockpit.Components.Models.Folder", "Hauptthema")
+                        .WithMany("Unterthema")
+                        .HasForeignKey("HauptthemaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LernCockpit.Components.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Hauptthema");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LernCockpit.Components.Models.LearningFile", b =>
+                {
+                    b.HasOne("LernCockpit.Components.Models.Folder", "Folder")
+                        .WithMany("Files")
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LernCockpit.Components.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Folder");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LernCockpit.Components.Models.Folder", b =>
+                {
+                    b.Navigation("Files");
+
+                    b.Navigation("Unterthema");
                 });
 #pragma warning restore 612, 618
         }

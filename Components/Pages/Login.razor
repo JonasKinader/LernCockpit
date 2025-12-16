@@ -4,10 +4,11 @@
 @using Microsoft.EntityFrameworkCore
 @using LernCockpit.Data
 @using Microsoft.AspNetCore.Components.Authorization
-@using MudBlazor
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ProtectedSessionStorage SessionStorage
 
 <PageTitle>Login - LernCockpit</PageTitle>
 
@@ -125,8 +126,10 @@
                 var zspeicher = (Zwischenspeicher)AuthStateProvider;
 
                 await zspeicher.UpdateAuthenticationState(user.Email);
+
+                await SessionStorage.SetAsync("UserId", user.Id);
                 
-                NavManager.NavigateTo("/dashboard", forceLoad: true);
+                NavManager.NavigateTo("/Dashboard");
             }
             else
             {

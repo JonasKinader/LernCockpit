@@ -1,6 +1,413 @@
 @page "/Dashboard"
-<h3>Dashboard</h3>
+@using LernCockpit.Components.Models
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ProtectedSessionStorage SessionStorage
+
+<PageTitle>Dashboard - LernCockpit</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <!-- LINKE SPALTE: Ordnerstruktur -->
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4" Elevation="3" Style="min-height: 500px;">
+                <MudText Typo="Typo.h6" Class="mb-4">Meine Themen</MudText>
+                
+                <MudButton StartIcon="@Icons.Material.Filled.CreateNewFolder" 
+                           Color="Color.Primary" 
+                           FullWidth="true" 
+                           Class="mb-4"
+                           OnClick="CreateRootFolder">
+                    Neues Thema
+                </MudButton>
+
+                <MudStack Spacing="1">
+                    @foreach (var folder in Folders)
+                    {
+                        <div>
+                            <div style="display: flex; align-items: center;">
+                                @if (folder.SubFolders.Any())
+                                {
+                                    <MudIconButton Icon="@(folder.IsExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => ToggleExpand(folder))" />
+                                }
+                                else
+                                {
+                                    <div style="width: 40px;"></div>
+                                }
+
+                                <MudButton Variant="@(SelectedFolder?.Id == folder.Id ? Variant.Filled : Variant.Text)"
+                                           Color="@(SelectedFolder?.Id == folder.Id ? Color.Primary : Color.Default)"
+                                           StartIcon="@Icons.Material.Filled.Folder"
+                                           FullWidth="true"
+                                           Style="justify-content: flex-start;"
+                                           OnClick="@(() => SelectFolder(folder))">
+                                    @folder.Name
+                                </MudButton>
+
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => RenameFolder(folder))">Umbenennen</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteFolder(folder))">Löschen</MudMenuItem>
+                                </MudMenu>
+                            </div>
+
+                            @if (folder.IsExpanded && folder.SubFolders.Any())
+                            {
+                                <MudStack Spacing="0" Class="ml-6">
+                                    @foreach (var sub in folder.SubFolders)
+                                    {
+                                        <div style="display: flex; align-items: center;">
+                                            <MudButton Variant="@(SelectedFolder?.Id == sub.Id ? Variant.Filled : Variant.Text)"
+                                                       Color="@(SelectedFolder?.Id == sub.Id ? Color.Primary : Color.Default)"
+                                                       StartIcon="@Icons.Material.Filled.Folder"
+                                                       FullWidth="true"
+                                                       Size="Size.Small"
+                                                       Style="justify-content: flex-start;"
+                                                       OnClick="@(() => SelectFolder(sub))">
+                                                @sub.Name
+                                            </MudButton>
+
+                                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                                <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => RenameFolder(sub))">Umbenennen</MudMenuItem>
+                                                <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteFolder(sub))">Löschen</MudMenuItem>
+                                            </MudMenu>
+                                        </div>
+                                    }
+                                </MudStack>
+                            }
+                        </div>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- RECHTE SPALTE: Inhalt -->
+        <MudItem xs="12" md="9">
+            @if (SelectedFolder != null)
+            {
+                <MudPaper Class="pa-6" Elevation="3" Style="min-height: 500px;">
+                    <div class="mb-3">
+                        <MudText Typo="Typo.h5" Color="Color.Primary">@SelectedFolder.Name</MudText>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <MudChipSet T="string" SelectedChipChanged="OnStatusChipChanged" Filter="true">
+                            <MudChip T="string" 
+                                     Text="Nicht begonnen" 
+                                     Color="Color.Default" 
+                                     Icon="@Icons.Material.Filled.RadioButtonUnchecked"
+                                     Default="@(SelectedFolder.Status == LearningStatus.NichtBegonnen)" />
+                            <MudChip T="string" 
+                                     Text="Begonnen" 
+                                     Color="Color.Info" 
+                                     Icon="@Icons.Material.Filled.PlayArrow"
+                                     Default="@(SelectedFolder.Status == LearningStatus.Begonnen)" />
+                            <MudChip T="string" 
+                                     Text="In Übung" 
+                                     Color="Color.Warning" 
+                                     Icon="@Icons.Material.Filled.TrendingUp"
+                                     Default="@(SelectedFolder.Status == LearningStatus.InUebung)" />
+                            <MudChip T="string" 
+                                     Text="Verstanden" 
+                                     Color="Color.Success" 
+                                     Icon="@Icons.Material.Filled.CheckCircle"
+                                     Default="@(SelectedFolder.Status == LearningStatus.Verstanden)" />
+                        </MudChipSet>
+                    </div>
+
+                    <MudDivider Class="mb-4"/>
+
+                    <MudStack Row="true" Class="mb-4" Spacing="2" Wrap="Wrap.Wrap">
+                        <MudButton StartIcon="@Icons.Material.Filled.CreateNewFolder" 
+                                   Variant="Variant.Outlined" 
+                                   OnClick="CreateSubFolder">
+                            Unterordner
+                        </MudButton>
+                        
+                        <MudButton StartIcon="@Icons.Material.Filled.NoteAdd" 
+                                   Variant="Variant.Filled" 
+                                   Color="Color.Secondary" 
+                                   OnClick="AddNote">
+                            Notiz erstellen
+                        </MudButton>
+                    </MudStack>
+
+                    <MudTable Items="@SelectedFolder.Files" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Typ</MudTh>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Größe</MudTh>
+                            <MudTh>Datum</MudTh>
+                            <MudTh>Aktionen</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="file">
+                            <MudTd DataLabel="Typ">
+                                <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Medium"/>
+                            </MudTd>
+                            <MudTd DataLabel="Name">
+                                <MudText Typo="Typo.body1">@file.Name</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Größe">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@file.DateiGroesseText</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Datum">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@file.CreatedAt.ToString("dd.MM.yyyy HH:mm")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Aktionen">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" OnClick="() => ViewFile(file)" Title="Ansehen" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteFile(file)" Title="Löschen" />
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Class="pa-4" Align="Align.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Class="mb-2"/>
+                                <br/>Dieser Ordner ist noch leer.
+                            </MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Class="pa-10 d-flex justify-center align-center flex-column" Elevation="3" Height="400px">
+                    <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="width: 100px; height: 100px;"/>
+                    <MudText Typo="Typo.h5" Color="Color.Secondary">Wähle links ein Thema aus oder erstelle ein neues.</MudText>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<!-- INPUT DIALOG -->
+@if (showInputDialog)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="10000">
+        <MudPaper Class="pa-10" Elevation="24" Style="max-width: 700px; width: 95%; position: relative;">
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" OnClick="CancelInput" Style="position: absolute; right: 8px; top: 8px;" />
+            <MudText Typo="Typo.h3" Class="mb-6">@inputDialogTitle</MudText>
+            <MudTextField @bind-Value="inputDialogValue" Label="@inputDialogLabel" Variant="Variant.Outlined" Immediate="true" Class="mb-6" @onkeydown="HandleInputKeyPress" />
+            <MudStack Row="true" Spacing="3" Justify="Justify.FlexEnd">
+                <MudButton OnClick="CancelInput" Variant="Variant.Outlined" Size="Size.Large">Abbrechen</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitInput" Size="Size.Large">OK</MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudOverlay>
+}
+
+<!-- NOTIZ EDITOR -->
+@if (showNoteEditor)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999">
+        <MudPaper Class="pa-10" Elevation="24" Style="width: 95vw; max-width: 2000px; height: 90vh; display: flex; flex-direction: column; position: relative;">
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" OnClick="CancelNoteEdit" Style="position: absolute; right: 8px; top: 8px; z-index: 1;" />
+            <MudText Typo="Typo.h3" Class="mb-6">Notiz bearbeiten</MudText>
+            <MudTextField @bind-Value="currentNote.Name" Label="Titel" Variant="Variant.Outlined" Class="mb-6" />
+            <MudTextField @bind-Value="currentNote.Content" Label="Inhalt" Variant="Variant.Outlined" Lines="20" Class="mb-6" Style="flex: 1;" />
+            <MudStack Row="true" Spacing="4" Justify="Justify.FlexEnd">
+                <MudButton OnClick="CancelNoteEdit" Variant="Variant.Outlined" Size="Size.Large">Abbrechen</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveNote" Size="Size.Large">Speichern</MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudOverlay>
+}
 
 @code {
-    
+    // === TEMPORÄRE UI KLASSEN (später durch DB-Models ersetzen) ===
+    public class FileItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsNote { get; set; } = true;
+        public string Content { get; set; } = "";
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public long? DateiGroesse { get; set; }
+
+        public string DateiGroesseText
+        {
+            get
+            {
+                if (DateiGroesse == null) return "-";
+                if (DateiGroesse < 1024) return $"{DateiGroesse} B";
+                if (DateiGroesse < 1024 * 1024) return $"{DateiGroesse / 1024} KB";
+                return $"{DateiGroesse / (1024 * 1024)} MB";
+            }
+        }
+    }
+
+    public class FolderItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsRoot { get; set; } = false;
+        public bool IsExpanded { get; set; } = false;
+        public int? ParentId { get; set; }
+        public LearningStatus Status { get; set; } = LearningStatus.NichtBegonnen;
+        public List<FolderItem> SubFolders { get; set; } = new();
+        public List<FileItem> Files { get; set; } = new();
+    }
+
+    // === STATE ===
+    private List<FolderItem> Folders = new();
+    private FolderItem? SelectedFolder;
+    private int folderCounter = 1;
+    private int noteCounter = 1;
+
+    // Dialog State
+    private bool showInputDialog = false;
+    private string inputDialogTitle = "";
+    private string inputDialogLabel = "";
+    private string inputDialogValue = "";
+    private Func<string, Task>? inputDialogAction = null;
+
+    // Notiz Editor State
+    private bool showNoteEditor = false;
+    private FileItem currentNote = new();
+    private bool isEditingExistingNote = false;
+
+    // === METHODEN ===
+    private void ToggleExpand(FolderItem folder) => folder.IsExpanded = !folder.IsExpanded;
+    private void SelectFolder(FolderItem folder) => SelectedFolder = folder;
+
+    private async Task SubmitInput()
+    {
+        if (inputDialogAction != null) await inputDialogAction(inputDialogValue);
+        showInputDialog = false;
+    }
+
+    private void CancelInput() => showInputDialog = false;
+
+    private void HandleInputKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = SubmitInput();
+        else if (e.Key == "Escape") CancelInput();
+    }
+
+    private void CreateRootFolder()
+    {
+        showInputDialog = true;
+        inputDialogTitle = "Neues Thema erstellen";
+        inputDialogLabel = "Themenname";
+        inputDialogValue = $"Neues Thema {folderCounter}";
+        inputDialogAction = async (name) =>
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var newFolder = new FolderItem { Id = folderCounter, Name = name, IsRoot = true, IsExpanded = true };
+                Folders.Add(newFolder);
+                SelectedFolder = newFolder;
+                folderCounter++;
+                Snackbar.Add($"Thema '{name}' erstellt", Severity.Success);
+            }
+            await Task.CompletedTask;
+        };
+    }
+
+    private void CreateSubFolder()
+    {
+        if (SelectedFolder == null) { Snackbar.Add("Bitte wähle erst einen Ordner aus", Severity.Warning); return; }
+        
+        showInputDialog = true;
+        inputDialogTitle = "Unterordner erstellen";
+        inputDialogLabel = "Ordnername";
+        inputDialogValue = $"Unterordner {folderCounter}";
+        var parent = SelectedFolder;
+        inputDialogAction = async (name) =>
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var newFolder = new FolderItem { Id = folderCounter, Name = name, ParentId = parent.Id };
+                parent.SubFolders.Add(newFolder);
+                parent.IsExpanded = true;
+                folderCounter++;
+                Snackbar.Add($"Unterordner '{name}' erstellt", Severity.Success);
+            }
+            await Task.CompletedTask;
+        };
+    }
+
+    private void RenameFolder(FolderItem folder)
+    {
+        showInputDialog = true;
+        inputDialogTitle = "Umbenennen";
+        inputDialogLabel = "Neuer Name";
+        inputDialogValue = folder.Name;
+        inputDialogAction = async (name) =>
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                folder.Name = name;
+                Snackbar.Add("Name geändert", Severity.Success);
+            }
+            await Task.CompletedTask;
+        };
+    }
+
+    private async Task DeleteFolder(FolderItem folder)
+    {
+        bool? result = await DialogService.ShowMessageBox("Ordner löschen", $"'{folder.Name}' wirklich löschen?", yesText: "Löschen", cancelText: "Abbrechen");
+        if (result == true)
+        {
+            Folders.Remove(folder);
+            foreach (var f in Folders) f.SubFolders.Remove(folder);
+            if (SelectedFolder?.Id == folder.Id) SelectedFolder = null;
+            Snackbar.Add("Ordner gelöscht", Severity.Info);
+        }
+    }
+
+    private void AddNote()
+    {
+        if (SelectedFolder == null) { Snackbar.Add("Bitte wähle erst einen Ordner aus", Severity.Warning); return; }
+        currentNote = new FileItem { Id = noteCounter, Name = $"Neue Notiz {noteCounter}" };
+        isEditingExistingNote = false;
+        showNoteEditor = true;
+        noteCounter++;
+    }
+
+    private void ViewFile(FileItem file)
+    {
+        currentNote = file;
+        isEditingExistingNote = true;
+        showNoteEditor = true;
+    }
+
+    private async Task SaveNote()
+    {
+        if (SelectedFolder == null) return;
+        if (!isEditingExistingNote) SelectedFolder.Files.Add(currentNote);
+        showNoteEditor = false;
+        Snackbar.Add("Notiz gespeichert", Severity.Success);
+        await Task.CompletedTask;
+    }
+
+    private void CancelNoteEdit() => showNoteEditor = false;
+
+    private async Task DeleteFile(FileItem file)
+    {
+        if (SelectedFolder == null) return;
+        bool? result = await DialogService.ShowMessageBox("Datei löschen", $"'{file.Name}' wirklich löschen?", yesText: "Löschen", cancelText: "Abbrechen");
+        if (result == true)
+        {
+            SelectedFolder.Files.Remove(file);
+            Snackbar.Add($"'{file.Name}' gelöscht", Severity.Info);
+        }
+    }
+
+    private async Task OnStatusChipChanged(MudChip<string> chip)
+    {
+        if (SelectedFolder == null || chip == null) return;
+        SelectedFolder.Status = chip.Text switch
+        {
+            "Begonnen" => LearningStatus.Begonnen,
+            "In Übung" => LearningStatus.InUebung,
+            "Verstanden" => LearningStatus.Verstanden,
+            _ => LearningStatus.NichtBegonnen
+        };
+        Snackbar.Add("Status geändert", Severity.Success);
+        await Task.CompletedTask;
+    }
 }

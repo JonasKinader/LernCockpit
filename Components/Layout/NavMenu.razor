@@ -3,25 +3,28 @@
 
 <MudNavMenu>
     
+    <MudDivider />
     <!-- User Navbar -->
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/Dashboard">Dashboard</MudNavLink>
         </Authorized>
     </AuthorizeView>
-    
+    <MudDivider />
     <!--Ausbilder Navbar -->
     <AuthorizeView Roles="Ausbilder">
         <Authorized>
-            <MudNavLink Href="/AusbilderDashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="/AusbilderDashboard">AusbilderDashboard</MudNavLink>
         </Authorized>
     </AuthorizeView>
-    
+    <MudDivider />
     <!-- Gäste/nicht Angemeldet Navbar -->
     <AuthorizeView>
         <NotAuthorized>
-        <MudNavLink Href="/registrieren" Match="NavLinkMatch.All">Registrieren</MudNavLink>
-        <MudNavLink Href="/login" Match="NavLinkMatch.All">Anmelden</MudNavLink>
+            <MudNavLink Href="/registrieren" Match="NavLinkMatch.All">Registrieren</MudNavLink>
+            <MudDivider />
+            <MudNavLink Href="/login" Match="NavLinkMatch.All">Anmelden</MudNavLink>
+            <MudDivider />
         </NotAuthorized>
     </AuthorizeView>
     
