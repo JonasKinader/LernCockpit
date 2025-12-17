@@ -2,6 +2,8 @@
 @using LernCockpit.Components.Auth
 @using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage LocalStorage
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -115,8 +117,10 @@
     private async Task Logout()
     {
         var zspeicher = (Zwischenspeicher)AuthStateProvider;
-
         await zspeicher.UpdateAuthenticationState(null);
+
+        await LocalStorage.DeleteAsync("UserId");
+        await LocalStorage.DeleteAsync("UserSession");
         
         NavManager.NavigateTo("/login");
     }

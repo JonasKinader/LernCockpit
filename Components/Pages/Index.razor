@@ -1,6 +1,25 @@
 @page "/"
-<h3>Startseite</h3>
+@using MudBlazor
 
-@code {
+<PageTitle>LernCockpit - Willkommen</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex flex-column align-center justify-center" Style="height: 80vh;">
     
-}
+    <MudIcon Icon="@Icons.Material.Filled.School" Style="font-size: 100px;" Color="Color.Primary" Class="mb-4" />
+    
+    <MudText Typo="Typo.h2" Align="Align.Center" Class="mb-2">LernCockpit</MudText>
+    
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Color="Color.Secondary" Class="mb-6">
+        Organisiere deine Lernthemen und behalte den Überblick
+    </MudText>
+    
+    <MudStack Row="true" Spacing="3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/login">
+            Anmelden
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" Href="/registrieren">
+            Registrieren
+        </MudButton>
+    </MudStack>
+    
+</MudContainer>

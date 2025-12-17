@@ -8,16 +8,16 @@ namespace LernCockpit.Components.Auth;
 
 public class Zwischenspeicher : AuthenticationStateProvider
 {
-    private readonly ProtectedSessionStorage _sessionStorage;
+    private readonly ProtectedSessionStorage _localStorage;
     // Hier habe ich die Factory hinzugefügt, um Zugriff auf die Datenbank zu bekommen
     private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
     
     private ClaimsPrincipal _anonymousUser = new ClaimsPrincipal(new ClaimsIdentity());
 
     // Im Konstruktor habe ich die DB-Factory injiziert
-    public Zwischenspeicher(ProtectedSessionStorage sessionStorage, IDbContextFactory<ApplicationDbContext> dbFactory)
+    public Zwischenspeicher(ProtectedSessionStorage localStorage, IDbContextFactory<ApplicationDbContext> dbFactory)
     {
-        _sessionStorage = sessionStorage;
+        _localStorage = localStorage;
         _dbFactory = dbFactory;
     }
 
@@ -25,7 +25,7 @@ public class Zwischenspeicher : AuthenticationStateProvider
     {
         try
         {
-            var result = await _sessionStorage.GetAsync<string>("UserSession");
+            var result = await _localStorage.GetAsync<string>("UserSession");
 
             if (result.Success && !string.IsNullOrEmpty(result.Value))
             {
@@ -52,7 +52,7 @@ public class Zwischenspeicher : AuthenticationStateProvider
 
         if (!string.IsNullOrEmpty(email))
         {
-            await _sessionStorage.SetAsync("UserSession", email);
+            await _localStorage.SetAsync("UserSession", email);
             
             // Auch beim Login lade ich die Claims frisch aus der Datenbank
             var claims = await GetClaimsFromDb(email);
@@ -61,7 +61,7 @@ public class Zwischenspeicher : AuthenticationStateProvider
         }
         else
         {
-            await _sessionStorage.DeleteAsync("UserSession");
+            await _localStorage.DeleteAsync("UserSession");
             user = _anonymousUser;
         }
         

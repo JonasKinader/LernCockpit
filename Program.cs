@@ -6,13 +6,15 @@ using Microsoft.EntityFrameworkCore;
 using LernCockpit.Data;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
-using Microsoft.AspNetCore.Authentication.Cookies; 
+using Microsoft.AspNetCore.Authentication.Cookies;
+using MudBlazor;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MudBlazor services
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(
+    config => config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight);
 
 // --- SPEICHER DIENSTE ---
 builder.Services.AddScoped<ProtectedSessionStorage>();
@@ -27,7 +29,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Dashboard";
+        options.LoginPath = "/Login";
         options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
     });
 builder.Services.AddAuthorization();
@@ -40,6 +42,13 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// Erhöhe Request-Limits für Session Storage
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestLineSize = 32768;
+    options.Limits.MaxRequestHeadersTotalSize = 131072;
+});
 
 var app = builder.Build();
 

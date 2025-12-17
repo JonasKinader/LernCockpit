@@ -1,31 +1,41 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 
-<MudNavMenu>
-    
-    <MudDivider />
-    <!-- User Navbar -->
-    <AuthorizeView>
-        <Authorized>
-            <MudNavLink Href="/Dashboard">Dashboard</MudNavLink>
-        </Authorized>
-    </AuthorizeView>
-    <MudDivider />
-    <!--Ausbilder Navbar -->
-    <AuthorizeView Roles="Ausbilder">
-        <Authorized>
-            <MudNavLink Href="/AusbilderDashboard">AusbilderDashboard</MudNavLink>
-        </Authorized>
-    </AuthorizeView>
-    <MudDivider />
-    <!-- Gäste/nicht Angemeldet Navbar -->
-    <AuthorizeView>
-        <NotAuthorized>
-            <MudNavLink Href="/registrieren" Match="NavLinkMatch.All">Registrieren</MudNavLink>
-            <MudDivider />
-            <MudNavLink Href="/login" Match="NavLinkMatch.All">Anmelden</MudNavLink>
-            <MudDivider />
-        </NotAuthorized>
-    </AuthorizeView>
-    
-</MudNavMenu>
+<div class="d-flex flex-column" style="height:92%; min-height:92vh;">
+
+    <MudNavMenu>
+        
+        <AuthorizeView>
+            <Authorized>
+                <MudNavLink Href="/Dashboard">Dashboard</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+        <MudDivider />
+        
+        <AuthorizeView Roles="Ausbilder">
+            <Authorized>
+                <MudNavLink Href="/AusbilderDashboard">AusbilderDashboard</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+        <MudDivider />
+        
+        <AuthorizeView>
+            <NotAuthorized>
+                <MudNavLink Href="/registrieren" Match="NavLinkMatch.All">Registrieren</MudNavLink>
+                <MudDivider />
+                <MudNavLink Href="/login" Match="NavLinkMatch.All">Anmelden</MudNavLink>
+                <MudDivider />
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudNavMenu>
+
+    <MudSpacer />
+
+    <MudNavMenu>
+        <MudDivider Class="my-2"/>
+        <MudNavLink Href="/impressum" Icon="@Icons.Material.Filled.Info">Impressum</MudNavLink>
+        <MudNavLink Href="/datenschutz" Icon="@Icons.Material.Filled.Security">Datenschutz</MudNavLink>
+        @*<div class="mb-4"></div> *@
+    </MudNavMenu>
+
+</div>
