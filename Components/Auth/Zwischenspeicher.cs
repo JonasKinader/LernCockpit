@@ -8,16 +8,19 @@ namespace LernCockpit.Components.Auth;
 
 public class Zwischenspeicher : AuthenticationStateProvider
 {
-    private readonly ProtectedSessionStorage _localStorage;
-    // Hier habe ich die Factory hinzugefügt, um Zugriff auf die Datenbank zu bekommen
+    private readonly ProtectedLocalStorage _localStorage;
+    private readonly ProtectedSessionStorage _sessionStorage;
     private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
     
     private ClaimsPrincipal _anonymousUser = new ClaimsPrincipal(new ClaimsIdentity());
 
-    // Im Konstruktor habe ich die DB-Factory injiziert
-    public Zwischenspeicher(ProtectedSessionStorage localStorage, IDbContextFactory<ApplicationDbContext> dbFactory)
+    public Zwischenspeicher(
+        ProtectedLocalStorage localStorage, 
+        ProtectedSessionStorage sessionStorage, 
+        IDbContextFactory<ApplicationDbContext> dbFactory)
     {
         _localStorage = localStorage;
+        _sessionStorage = sessionStorage;
         _dbFactory = dbFactory;
     }
 
@@ -25,15 +28,19 @@ public class Zwischenspeicher : AuthenticationStateProvider
     {
         try
         {
+            // Erst LocalStorage prüfen (angemeldet bleiben)
             var result = await _localStorage.GetAsync<string>("UserSession");
+            
+            // Falls nicht gefunden, SessionStorage prüfen
+            if (!result.Success || string.IsNullOrEmpty(result.Value))
+            {
+                result = await _sessionStorage.GetAsync<string>("UserSession");
+            }
 
             if (result.Success && !string.IsNullOrEmpty(result.Value))
             {
                 var email = result.Value;
-                
-                // Hier rufe ich die Hilfsmethode auf, um die Rollen aus der DB zu laden
                 var claims = await GetClaimsFromDb(email);
-                
                 var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "CustomAuth"));
                 return new AuthenticationState(user);
             }
@@ -46,29 +53,38 @@ public class Zwischenspeicher : AuthenticationStateProvider
         return new AuthenticationState(_anonymousUser);
     }
 
-    public async Task UpdateAuthenticationState(string? email)
+    // NEU: Parameter für "angemeldet bleiben"
+    public async Task UpdateAuthenticationState(string? email, bool angemeldetBleiben = false)
     {
         ClaimsPrincipal user;
 
         if (!string.IsNullOrEmpty(email))
         {
-            await _localStorage.SetAsync("UserSession", email);
+            if (angemeldetBleiben)
+            {
+                // Dauerhaft speichern
+                await _localStorage.SetAsync("UserSession", email);
+            }
+            else
+            {
+                // Nur für diese Sitzung
+                await _sessionStorage.SetAsync("UserSession", email);
+            }
             
-            // Auch beim Login lade ich die Claims frisch aus der Datenbank
             var claims = await GetClaimsFromDb(email);
-            
             user = new ClaimsPrincipal(new ClaimsIdentity(claims, "CustomAuth"));
         }
         else
         {
+            // Logout - beide Storage-Arten löschen
             await _localStorage.DeleteAsync("UserSession");
+            await _sessionStorage.DeleteAsync("UserSession");
             user = _anonymousUser;
         }
         
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
 
-    // In dieser Methode wandle ich den Boolean aus der Datenbank in eine Rolle um
     private async Task<List<Claim>> GetClaimsFromDb(string email)
     {
         var claims = new List<Claim>
@@ -79,23 +95,20 @@ public class Zwischenspeicher : AuthenticationStateProvider
 
         try 
         {
-            // Hier öffne ich kurz eine Datenbankverbindung
             using var db = _dbFactory.CreateDbContext();
             var dbUser = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
             
             if (dbUser != null)
             {
-                // Hier prüfe ich, ob der User ein Ausbilder ist (Boolean Feld)
                 if (dbUser.IsAusbilder) 
                 {
-                    // Wenn ja, füge ich die Rolle "Ausbilder" hinzu
                     claims.Add(new Claim(ClaimTypes.Role, "Ausbilder"));
                 }
             }
         }
         catch
         {
-            // Falls DB down ist, logge ich ihn trotzdem als normalen User ein
+            // Falls DB down ist, trotzdem als normalen User einloggen
         }
 
         return claims;

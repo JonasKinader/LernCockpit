@@ -10,7 +10,7 @@
 @inject ProtectedLocalStorage LocalStorage
 @inject ILearningService LearningService
 @inject NavigationManager NavManager
-
+@inject ProtectedSessionStorage SessionStorage
 
 <PageTitle>Dashboard - LernCockpit</PageTitle>
 
@@ -108,28 +108,32 @@ else
                         </div>
 
                         <div class="mb-4">
-                            <MudChipSet T="string" SelectedChipChanged="OnStatusChipChanged" Filter="true">
-                                <MudChip T="string"
-                                         Text="Nicht begonnen"
-                                         Color="Color.Default"
-                                         Icon="@Icons.Material.Filled.RadioButtonUnchecked"
-                                         Default="@(SelectedFolder.Status == LearningStatus.NichtBegonnen)"/>
-                                <MudChip T="string"
-                                         Text="Begonnen"
-                                         Color="Color.Info"
-                                         Icon="@Icons.Material.Filled.PlayArrow"
-                                         Default="@(SelectedFolder.Status == LearningStatus.Begonnen)"/>
-                                <MudChip T="string"
-                                         Text="In Übung"
-                                         Color="Color.Warning"
-                                         Icon="@Icons.Material.Filled.TrendingUp"
-                                         Default="@(SelectedFolder.Status == LearningStatus.InUebung)"/>
-                                <MudChip T="string"
-                                         Text="Verstanden"
-                                         Color="Color.Success"
-                                         Icon="@Icons.Material.Filled.CheckCircle"
-                                         Default="@(SelectedFolder.Status == LearningStatus.Verstanden)"/>
-                            </MudChipSet>
+                            <MudButtonGroup OverrideStyles="false">
+                                <MudButton Variant="@(SelectedFolder.Status == LearningStatus.NichtBegonnen ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Default"
+                                           StartIcon="@Icons.Material.Filled.RadioButtonUnchecked"
+                                           OnClick="@(() => SetStatus(LearningStatus.NichtBegonnen))">
+                                    Nicht begonnen
+                                </MudButton>
+                                <MudButton Variant="@(SelectedFolder.Status == LearningStatus.Begonnen ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Info"
+                                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                                           OnClick="@(() => SetStatus(LearningStatus.Begonnen))">
+                                    Begonnen
+                                </MudButton>
+                                <MudButton Variant="@(SelectedFolder.Status == LearningStatus.InUebung ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Warning"
+                                           StartIcon="@Icons.Material.Filled.TrendingUp"
+                                           OnClick="@(() => SetStatus(LearningStatus.InUebung))">
+                                    In Übung
+                                </MudButton>
+                                <MudButton Variant="@(SelectedFolder.Status == LearningStatus.Verstanden ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Success"
+                                           StartIcon="@Icons.Material.Filled.CheckCircle"
+                                           OnClick="@(() => SetStatus(LearningStatus.Verstanden))">
+                                    Verstanden
+                                </MudButton>
+                            </MudButtonGroup>
                         </div>
 
                         <MudDivider Class="mb-4"/>
@@ -294,6 +298,11 @@ else
             {
                 // UserId aus Session holen
                 var userIdResult = await LocalStorage.GetAsync<int>("UserId");
+                
+                if (!userIdResult.Success)
+                {
+                    userIdResult = await SessionStorage.GetAsync<int>("UserId");
+                }
                 currentUserId = userIdResult.Success ? userIdResult.Value : 0;
 
                 if (currentUserId == 0)
@@ -657,21 +666,12 @@ else
         }
     }
 
-    private async Task OnStatusChipChanged(MudChip<string> chip)
+    private async Task SetStatus(LearningStatus newStatus)
     {
-        if (SelectedFolder == null || chip == null) return;
+        if (SelectedFolder == null) return;
+    
         try
         {
-            // Neuen Status bestimmen
-            var newStatus = chip.Text switch
-            {
-                "Begonnen" => LearningStatus.Begonnen,
-                "In Übung" => LearningStatus.InUebung,
-                "Verstanden" => LearningStatus.Verstanden,
-                _ => LearningStatus.NichtBegonnen
-            };
-
-            // Aus DB holen und aktualisieren
             var dbFolder = await LearningService.GetFolderByIdAsync(SelectedFolder.Id, currentUserId);
         
             if (dbFolder != null)
@@ -679,7 +679,6 @@ else
                 dbFolder.Status = newStatus;
                 await LearningService.UpdateFolderAsync(dbFolder);
             
-                // UI aktualisieren
                 SelectedFolder.Status = newStatus;
                 Snackbar.Add("Status geändert", Severity.Success);
             }

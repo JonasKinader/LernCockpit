@@ -9,6 +9,7 @@
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ProtectedLocalStorage LocalStorage
+@inject ProtectedSessionStorage SessionStorage
 
 <PageTitle>Login - LernCockpit</PageTitle>
 
@@ -39,7 +40,7 @@
                               OnKeyDown="@OnKeyDown"/>
                 
                 <div class="d-flex justify-space-between align-center mt-4 mb-4">
-                    <MudCheckBox T="bool" Label="Angemeldet bleiben" Color="Color.Primary" />
+                    <MudCheckBox @bind-Value="_angemeldetBleiben" T="bool" Label="Angemeldet bleiben" Color="Color.Primary" />
                     <MudLink Href="#" Color="Color.Primary">Passwort vergessen?</MudLink>
                 </div>
                 
@@ -83,6 +84,7 @@
     private string _passwort = "";
     private string _errorMessage = "";
     private bool _loading = false;
+    private bool _angemeldetBleiben = false;
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
@@ -125,9 +127,16 @@
             {
                 var zspeicher = (Zwischenspeicher)AuthStateProvider;
 
-                await zspeicher.UpdateAuthenticationState(user.Email);
-
+                await zspeicher.UpdateAuthenticationState(user.Email, _angemeldetBleiben);
+                if (_angemeldetBleiben)
+                {
                 await LocalStorage.SetAsync("UserId", user.Id);
+                }
+                else
+                {
+                    await SessionStorage.SetAsync("UserId", user.Id);
+                }
+                
                 
                 NavManager.NavigateTo("/Dashboard");
             }

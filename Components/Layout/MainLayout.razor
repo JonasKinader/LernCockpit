@@ -6,6 +6,7 @@
 @inject ProtectedLocalStorage LocalStorage
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ProtectedSessionStorage SessionStorage
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -120,7 +121,8 @@
         await zspeicher.UpdateAuthenticationState(null);
 
         await LocalStorage.DeleteAsync("UserId");
-        await LocalStorage.DeleteAsync("UserSession");
+        
+        await SessionStorage.DeleteAsync("UserId");
         
         NavManager.NavigateTo("/login");
     }

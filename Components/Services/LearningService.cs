@@ -44,8 +44,15 @@ public class LearningService : ILearningService
     public async Task UpdateFolderAsync(Folder folder)
     {
         using var db = _dbFactory.CreateDbContext();
-        db.Folders.Update(folder);
-        await db.SaveChangesAsync();
+        var existing = await db.Folders.FirstOrDefaultAsync(f => f.Id == folder.Id);
+        if (existing != null)
+        {
+            existing.Name = folder.Name;
+            existing.Status = folder.Status;
+            existing.IsAufgeklappt = folder.IsAufgeklappt;
+            
+            await db.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteFolderAsync(int folderId, int userId)
@@ -97,5 +104,29 @@ public class LearningService : ILearningService
             db.LearningFiles.Remove(file);
             await db.SaveChangesAsync();
         }
+    }
+    
+    // === AUSBILDER METHODEN ===
+
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+    
+        // Alle User außer Ausbilder
+        return await db.Users
+            .Where(u => !u.IsAusbilder)
+            .ToListAsync();
+    }
+
+    public async Task<List<Folder>> GetFoldersByUserIdAsync(int userId)
+    {
+        using var db = _dbFactory.CreateDbContext();
+    
+        return await db.Folders
+            .Where(f => f.UserId == userId && f.IsHauptthema)
+            .Include(f => f.Unterthema)
+            .ThenInclude(u => u.Files)
+            .Include(f => f.Files)
+            .ToListAsync();
     }
 }

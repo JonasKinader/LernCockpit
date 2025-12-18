@@ -1,6 +1,334 @@
 @page "/AusbilderDashboard"
-<h3>AusbilderDashboard</h3>
+@using LernCockpit.Components.Models
+@using LernCockpit.Components.Services
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using MudBlazor
+@rendermode InteractiveServer
+@inject ISnackbar Snackbar
+@inject ILearningService LearningService
+@inject ProtectedLocalStorage LocalStorage
+@inject NavigationManager NavManager
+
+<PageTitle>Ausbilder Dashboard - LernCockpit</PageTitle>
+
+@if (_isChecking)
+{
+    <MudContainer Class="d-flex justify-center align-center" Style="height: 80vh;">
+        <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+        <MudText Typo="Typo.h4" Class="mb-4">Ausbilder Übersicht</MudText>
+        
+        <MudGrid>
+            <!-- LINKE SPALTE: User & Themen -->
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="3" Style="min-height: 500px;">
+                    <MudText Typo="Typo.h6" Class="mb-4">Alle Nutzer</MudText>
+
+                    @if (Users.Count == 0)
+                    {
+                        <MudText Color="Color.Secondary">Keine Nutzer vorhanden</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="1">
+                            @foreach (var user in Users)
+                            {
+                                <div>
+                                    <div style="display: flex; align-items: center;">
+                                        <MudIconButton Icon="@(user.IsExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => ToggleUser(user))" />
+
+                                        <MudButton Variant="Variant.Text"
+                                                   Color="Color.Default"
+                                                   StartIcon="@Icons.Material.Filled.Person"
+                                                   FullWidth="true"
+                                                   Style="justify-content: flex-start;"
+                                                   OnClick="@(() => ToggleUser(user))">
+                                            @user.Username
+                                        </MudButton>
+                                    </div>
+
+                                    @if (user.IsExpanded)
+                                    {
+                                        <MudStack Spacing="0" Class="ml-6">
+                                            @if (user.Folders.Count == 0)
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-4">
+                                                    Keine Themen vorhanden
+                                                </MudText>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var folder in user.Folders)
+                                                {
+                                                    <div style="display: flex; align-items: center;">
+                                                        @if (folder.SubFolders.Any())
+                                                        {
+                                                            <MudIconButton Icon="@(folder.IsExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                                                                           Size="Size.Small"
+                                                                           OnClick="@(() => folder.IsExpanded = !folder.IsExpanded)" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <div style="width: 40px;"></div>
+                                                        }
+
+                                                        <MudButton Variant="@(SelectedFolder?.Id == folder.Id ? Variant.Filled : Variant.Text)"
+                                                                   Color="@(SelectedFolder?.Id == folder.Id ? Color.Primary : Color.Default)"
+                                                                   StartIcon="@Icons.Material.Filled.Folder"
+                                                                   FullWidth="true"
+                                                                   Size="Size.Small"
+                                                                   Style="justify-content: flex-start;"
+                                                                   OnClick="@(() => SelectFolder(folder))">
+                                                            @folder.Name
+                                                        </MudButton>
+
+                                                        <MudIcon Icon="@GetStatusIcon(folder.Status)" 
+                                                                 Color="@GetStatusColor(folder.Status)" 
+                                                                 Size="Size.Small" />
+                                                    </div>
+
+                                                    @if (folder.IsExpanded && folder.SubFolders.Any())
+                                                    {
+                                                        <MudStack Spacing="0" Class="ml-6">
+                                                            @foreach (var sub in folder.SubFolders)
+                                                            {
+                                                                <div style="display: flex; align-items: center;">
+                                                                    <div style="width: 40px;"></div>
+                                                                    <MudButton Variant="@(SelectedFolder?.Id == sub.Id ? Variant.Filled : Variant.Text)"
+                                                                               Color="@(SelectedFolder?.Id == sub.Id ? Color.Primary : Color.Default)"
+                                                                               StartIcon="@Icons.Material.Filled.Folder"
+                                                                               FullWidth="true"
+                                                                               Size="Size.Small"
+                                                                               Style="justify-content: flex-start;"
+                                                                               OnClick="@(() => SelectFolder(sub))">
+                                                                        @sub.Name
+                                                                    </MudButton>
+
+                                                                    <MudIcon Icon="@GetStatusIcon(sub.Status)" 
+                                                                             Color="@GetStatusColor(sub.Status)" 
+                                                                             Size="Size.Small" />
+                                                                </div>
+                                                            }
+                                                        </MudStack>
+                                                    }
+                                                }
+                                            }
+                                        </MudStack>
+                                    }
+                                </div>
+                            }
+                        </MudStack>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <!-- RECHTE SPALTE: Details -->
+            <MudItem xs="12" md="8">
+                @if (SelectedFolder != null)
+                {
+                    <MudPaper Class="pa-6" Elevation="3" Style="min-height: 500px;">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                            <MudText Typo="Typo.h5" Color="Color.Primary">@SelectedFolder.Name</MudText>
+                            <MudChip T="string" 
+                                     Color="@GetStatusColor(SelectedFolder.Status)" 
+                                     Icon="@GetStatusIcon(SelectedFolder.Status)">
+                                @GetStatusText(SelectedFolder.Status)
+                            </MudChip>
+                        </MudStack>
+
+                        <MudDivider Class="mb-4"/>
+
+                        <MudText Typo="Typo.h6" Class="mb-2">Dateien & Notizen</MudText>
+
+                        <MudTable Items="@SelectedFolder.Files" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Typ</MudTh>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Datum</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="file">
+                                <MudTd DataLabel="Typ">
+                                    <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Medium"/>
+                                </MudTd>
+                                <MudTd DataLabel="Name">
+                                    <MudText Typo="Typo.body1">@file.Name</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Datum">
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@file.CreatedAt.ToString("dd.MM.yyyy HH:mm")</MudText>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Class="pa-4" Align="Align.Center" Color="Color.Secondary">
+                                    Keine Dateien vorhanden
+                                </MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudPaper Class="pa-10 d-flex justify-center align-center flex-column" Elevation="3" Height="400px">
+                        <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="width: 100px; height: 100px;"/>
+                        <MudText Typo="Typo.h5" Color="Color.Secondary">Wähle links einen Nutzer und ein Thema aus</MudText>
+                    </MudPaper>
+                }
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
 
 @code {
-    
+    // === UI KLASSEN ===
+    public class FileItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class FolderItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsExpanded { get; set; } = false;
+        public LearningStatus Status { get; set; }
+        public List<FolderItem> SubFolders { get; set; } = new();
+        public List<FileItem> Files { get; set; } = new();
+    }
+
+    public class UserItem
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = "";
+        public bool IsExpanded { get; set; } = false;
+        public List<FolderItem> Folders { get; set; } = new();
+    }
+
+    // === STATE ===
+    private bool _isLoaded = false;
+    private bool _isChecking = true;
+    private List<UserItem> Users = new();
+    private FolderItem? SelectedFolder;
+
+    // === INITIALISIERUNG ===
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isLoaded)
+        {
+            try
+            {
+                var userIdResult = await LocalStorage.GetAsync<int>("UserId");
+                var userId = userIdResult.Success ? userIdResult.Value : 0;
+
+                if (userId == 0)
+                {
+                    NavManager.NavigateTo("/login");
+                    return;
+                }
+
+                await LoadUsers();
+                _isLoaded = true;
+            }
+            catch
+            {
+                NavManager.NavigateTo("/login");
+                return;
+            }
+            finally
+            {
+                _isChecking = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        var dbUsers = await LearningService.GetAllUsersAsync();
+        
+        Users = dbUsers.Select(u => new UserItem
+        {
+            Id = u.Id,
+            Username = u.Username,
+            IsExpanded = false,
+            Folders = new()
+        }).ToList();
+    }
+
+    private async Task ToggleUser(UserItem user)
+    {
+        user.IsExpanded = !user.IsExpanded;
+
+        // Lade Folders beim ersten Aufklappen
+        if (user.IsExpanded && user.Folders.Count == 0)
+        {
+            try
+            {
+                var dbFolders = await LearningService.GetFoldersByUserIdAsync(user.Id);
+                
+                user.Folders = dbFolders.Select(f => new FolderItem
+                {
+                    Id = f.Id,
+                    Name = f.Name,
+                    Status = f.Status,
+                    IsExpanded = false,
+                    SubFolders = f.Unterthema.Select(u => new FolderItem
+                    {
+                        Id = u.Id,
+                        Name = u.Name,
+                        Status = u.Status,
+                        Files = u.Files.Select(file => new FileItem
+                        {
+                            Id = file.Id,
+                            Name = file.Name,
+                            CreatedAt = file.CreatedAt
+                        }).ToList()
+                    }).ToList(),
+                    Files = f.Files.Select(file => new FileItem
+                    {
+                        Id = file.Id,
+                        Name = file.Name,
+                        CreatedAt = file.CreatedAt
+                    }).ToList()
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void SelectFolder(FolderItem folder) => SelectedFolder = folder;
+
+    // === HELPER ===
+    private string GetStatusIcon(LearningStatus status) => status switch
+    {
+        LearningStatus.Begonnen => Icons.Material.Filled.PlayArrow,
+        LearningStatus.InUebung => Icons.Material.Filled.TrendingUp,
+        LearningStatus.Verstanden => Icons.Material.Filled.CheckCircle,
+        _ => Icons.Material.Filled.RadioButtonUnchecked
+    };
+
+    private Color GetStatusColor(LearningStatus status) => status switch
+    {
+        LearningStatus.Begonnen => Color.Info,
+        LearningStatus.InUebung => Color.Warning,
+        LearningStatus.Verstanden => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetStatusText(LearningStatus status) => status switch
+    {
+        LearningStatus.Begonnen => "Begonnen",
+        LearningStatus.InUebung => "In Übung",
+        LearningStatus.Verstanden => "Verstanden",
+        _ => "Nicht begonnen"
+    };
 }

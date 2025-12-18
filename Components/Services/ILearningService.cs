@@ -12,4 +12,7 @@ public interface ILearningService
     Task<LearningFile> CreateFileAsync(LearningFile file);
     Task UpdateFileAsync(LearningFile file);
     Task DeleteFileAsync(int fileId, int userId);
+    
+    Task<List<User>> GetAllUsersAsync();
+    Task<List<Folder>> GetFoldersByUserIdAsync(int userId);
 }
