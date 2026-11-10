@@ -98,7 +98,7 @@
 
 @code {
     // Ausbilder-Code kommt aus der Konfiguration (User Secrets)
-    private const string SECRET_CODE => Config["AusbilderCode"] ?? "";
+    private string SECRET_CODE => Config["AusbilderCode"] ?? "";
 
     RegisterAccountForm model = new RegisterAccountForm();
     bool success;
