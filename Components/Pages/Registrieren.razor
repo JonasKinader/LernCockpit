@@ -7,6 +7,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager NavManager
+@inject IConfiguration Config
 
 <PageTitle>Registrieren - LernCockpit</PageTitle>
 
@@ -96,8 +97,8 @@
 </MudGrid>
 
 @code {
-    // Lehrer secretcode zum bestätigen das man ausbilder ist !!!!!!!!!!!!!!!!!
-    private const string SECRET_CODE = "lehrercode123"; 
+    // Ausbilder-Code kommt aus der Konfiguration (User Secrets)
+    private const string SECRET_CODE => Config["AusbilderCode"] ?? "";
 
     RegisterAccountForm model = new RegisterAccountForm();
     bool success;
